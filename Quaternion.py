@@ -8,7 +8,10 @@ class Quaternion:
 
     @classmethod
     def from_vector(cls, v):
-        return Quaternion(v[0], v[1:3])
+        return Quaternion(v[0], v[1:])
+
+    def to_vector(self):
+        return np.array([self.s, self.v[0], self.v[1], self.v[2]])
 
     @classmethod
     def from_euler(cls, v):
@@ -30,11 +33,13 @@ class Quaternion:
         z = t1 * t2 * t4 - t0 * t3 * t5;
         return Quaternion(w, np.array([x, y, z]))
 
-        # if np.linalg.norm(v) == 0:
-        #     return Quaternion(0, np.array([0, 0, 0]))
-        # d_angle = np.linalg.norm(v)
-        # d_axis = v / np.linalg.norm(v)
-        # return Quaternion(np.cos(d_angle / 2), d_axis * np.sin(d_angle / 2))
+    @classmethod
+    def from_angle(cls, v):
+        if np.linalg.norm(v) == 0:
+            return Quaternion(0, np.array([0, 0, 0]))
+        d_angle = np.linalg.norm(v)
+        d_axis = v / np.linalg.norm(v)
+        return Quaternion(np.cos(d_angle / 2), d_axis * np.sin(d_angle / 2))
 
     @classmethod
     def from_rotation(cls, v):
@@ -94,7 +99,16 @@ class Quaternion:
         return Quaternion(q0, [q1, q2, q3])
 
     def __add__(self, other):
+        #if (type(other) == Quaternion):
         return Quaternion(self.s + other.s, self.v + other.v)
+        # else:
+        #     return Quaternion(other[0] + self.s, other[1:] + self.v)
+
+    def __sub__(self, other):
+        # if (type(other) == Quaternion):
+        return Quaternion(self.s - other.s, self.v - other.v)
+        # else:
+        #     return Quaternion(other[0] + self.s, other[1:] + self.v)
 
     def __mul__(self, other):
         if (type(other) == Quaternion):
@@ -124,6 +138,10 @@ class Quaternion:
 
     def norm(self):
         return np.linalg.norm([self.s, self.v[0], self.v[1], self.v[2]])
+
+    def normalize(self):
+        n = self.norm()
+        return Quaternion(self.s/n, self.v/n)
 
     def log(self):
         n_q = self.norm()
@@ -159,14 +177,7 @@ class Quaternion:
 
         return m
 
-    def to_angles(self):
-        # if np.linalg.norm(self.v) == 0:
-        #     return np.array([0, 0, 0])
-        # else:
-        #     print(self.s)
-        #     theta = 2 * np.arccos(self.s)
-        #     u = self.v / np.sin(theta / 2)
-        # return theta * u
+    def to_euler(self):
 
         x = self.v[0]
         y = self.v[1]
@@ -174,13 +185,13 @@ class Quaternion:
         w = self.s
         ysqr = y * y
 
-        # roll(x - axis         rotation)
-        t0 = 2.0 * (w * x + y * z)
-        t1 = 1.0 - 2.0 * (x * x + ysqr)
+        # roll = x axis rotation
+        t0 = 2 * (w * x + y * z)
+        t1 = 1 - 2 * (x * x + ysqr)
         roll = np.arctan2(t0, t1)
 
-        # pitch(y - axis        rotation)
-        t2 = +2.0 * (w * y - z * x)
+        # pitch = y axis rotation
+        t2 = 2 * (w * y - z * x)
         if t2 > 1:
             t2 = 1
         elif t2 < -1:
@@ -188,11 +199,19 @@ class Quaternion:
 
         pitch = np.arcsin(t2)
 
-        # yaw(z - axis         rotation)
-        t3 = +2.0 * (w * z + x * y)
-        t4 = +1.0 - 2.0 * (ysqr + z * z)
+        # yaw = z axis rotation
+        t3 = 2 * (w * z + x * y)
+        t4 = 1 - 2 * (ysqr + z * z)
         yaw = np.arctan2(t3, t4)
         return np.array([roll, pitch, yaw])
+
+    def to_angle(self):
+        if np.isclose(np.linalg.norm(self.v), 0,1e-8):
+            return np.array([0, 0, 0])
+        else:
+            theta = 2 * np.arccos(self.s)
+            u = self.v / np.sin(theta / 2)
+        return theta * u
 
     @staticmethod
     def average(q_arr, w_arr):

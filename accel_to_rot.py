@@ -58,8 +58,8 @@ q2 = Quaternion.from_euler(np.pi * np.array([1, 0, 0]))
 
 #print((q1*q2).to_angles())
 #print(np.array([1,0,0]) * np.array([1,0,0]))
-arrq = [q1, q2]
-arrw = [0.5, 0.5]
+arrq = np.array([q1, q2])
+arrw = np.array([0.5, 0.5])
 avg = Quaternion.average(arrq,arrw )
 print(avg*avg)
 print(q2*q1)
