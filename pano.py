@@ -49,17 +49,14 @@ z = np.tile(np.sin(lam).reshape(-1,1),(1,w_pix))
 cart = np.dstack((x,y,z))
 
 T = np.shape(pics_t)[1]
-for t in range(0, T,5):
+for t in range(0, T,20):
     i = np.argmin(q_t <= pics_t[0, t])
     if mydata:
         R = q[i].to_rotation()
     else:
         R = v['rots'][:, :, i]
 
-    #frame = cv2.cvtColor(pics[:, :, :, t], cv2.COLOR_BGR2RGB)
     frame = pics[:,:,:,t]
-    # plt.imshow(frame)
-    # plt.show()
 
     r_cart = np.einsum('pr,mnr->mnp', R, cart)
 
@@ -73,16 +70,18 @@ for t in range(0, T,5):
     theta = (yaw / math.pi / 2 * pano_size[1]).astype(int)
 
     ################ blending
+    new_frame = np.zeros(pano_size, dtype=np.uint8)
+    new_frame[h.tolist(), theta.tolist(), :] = frame
+
     empty_pano = np.zeros(pano_size, dtype=np.uint8)
-    empty_pano[h.tolist(), theta.tolist(), :] = frame
 
     # get the intersecting region
-    #ret1, mask1 = cv2.threshold(cv2.cvtColor(empty_pano, cv2.COLOR_BGR2GRAY), 0, 255, cv2.THRESH_BINARY)
+    ret1, mask1 = cv2.threshold(cv2.cvtColor(new_frame, cv2.COLOR_BGR2GRAY), 0, 255, cv2.THRESH_BINARY)
     ret2, mask2 = cv2.threshold(cv2.cvtColor(pano, cv2.COLOR_BGR2GRAY), 0, 255, cv2.THRESH_BINARY)
-    #mask = np.bitwise_and(mask1, mask2)
 
-    # empty pano has old pano on top
-    empty_pano = cv2.add(empty_pano, pano, mask=mask2)
+    # empty_pano has old pano on top
+    empty_pano = cv2.add(empty_pano,new_frame, mask=(cv2.bitwise_and(mask1,cv2.bitwise_not(mask2))))
+    empty_pano = cv2.add(empty_pano,pano)
 
     # pano has the newest frame on top
     pano[h.tolist(), theta.tolist(), :] = frame
