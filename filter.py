@@ -5,12 +5,15 @@ import matplotlib.pyplot as plt
 from matplotlib.pyplot import *
 from util import rotationMatrixToEulerAngles, isRotationMatrix
 
-file_num = 1
+######## Change file num and file name params ###########
+file_num = 9
 x = io.loadmat('imu/imuRaw' + str(file_num) + '.mat')
 v = io.loadmat('vicon/viconRot' + str(file_num) + '.mat')
 fileName = "filtered/filtered"+str(file_num)
 fileNamet = "filtered/time"+str(file_num)
+########################################################
 
+####### Data cleaning ##################################
 Vref = float(3300)  # mV
 
 gyro_sens1 = 0.83 * 180 / np.pi  # mv / (deg/s) to radians
@@ -30,15 +33,18 @@ accel_val = (accel_raw - accel_bias) * accel_scale * np.tile(np.reshape(np.array
 
 gyro_val = (gyro_raw - gyro_bias) * gyro_scale
 temp = np.copy(gyro_val[0, :])
+
+# swap gyro axes according to spec
 gyro_val[0, :] = gyro_val[1, :]
 gyro_val[1, :] = gyro_val[2, :]
 gyro_val[2, :] = temp
 
 # subtract the gyro drift (avg of gyro)
-gyro_drift = np.reshape(np.mean(gyro_val, axis=1), (-1, 1))
+gyro_drift = np.reshape(np.mean(gyro_val[:,1:100], axis=1), (-1, 1))
 gyro_val = np.add(gyro_val, -1 * np.tile(gyro_drift, (1, np.shape(gyro_val)[1])))
 
-#########################
+##############################################################################
+############# benchmarking vs vicon and basic averaging ######################
 dt = np.mean(np.ediff1d(x['ts']))
 
 # GYRO - equations 9-11
@@ -52,8 +58,6 @@ accel_orientation[0, :] = np.arctan2(accel_val[1, :], accel_val[2, :])  # roll
 accel_orientation[1, :] = np.arctan2(-accel_val[0, :], np.sqrt(
     accel_val[1, :] * accel_val[1, :] + accel_val[2, :] * accel_val[2, :]))  # pitch
 
-##############################################################################
-############# benchmarking vs vicon ##########################################
 vicon_orientation = np.zeros((np.shape(v['rots'])[0], np.shape(v['rots'])[2]))
 for i in range(0, np.shape(v['rots'])[2]):
     vicon_orientation[:, i] = rotationMatrixToEulerAngles(v['rots'][:, :, i])
@@ -81,7 +85,7 @@ q_k = Quaternion.from_euler(accel_orientation[:, 0])  # mean
 P_k = 1e-6 * np.eye(3)  # cov
 # noise parameters
 Q = 1e-8 * np.eye(3)  # cov
-R = 5e-1 * np.eye(3)  # cov
+R = 5e-2 * np.eye(3)  # cov
 
 # animated plot
 # fig = plt.figure()
@@ -98,7 +102,7 @@ for t in range(0, np.shape(accel_val)[1]):
     q_accum[t] = q_k
 
     # Sigma Points #####################################################################################################
-    tempW = np.sqrt(n) * scipy.linalg.cholesky(P_k + Q)
+    tempW =  np.sqrt(2*n) * scipy.linalg.cholesky(P_k + Q)
     W = np.append(tempW, -tempW, axis=1)
 
     X = np.empty(2 * n, dtype=Quaternion)
@@ -115,15 +119,14 @@ for t in range(0, np.shape(accel_val)[1]):
     for i in range(0, 2 * n):
         w = (Y[i] * Yavg.inverse()).to_angle()
         P_k_ += np.outer(w, w)
-    P_k_ /= (2 * n)
+    P_k_ /= (4 * n)
 
     # Measurement model ################################################################################################
-    a_val = accel_val[:, i]
+    a_val = -accel_val[:, i]
 
     Z = np.empty((3, 2 * n))
     for i in range(0, 2 * n):
-        g_prime = (Y[i] * g * Y[i].inverse()).to_angle()
-        Z[:, i] = g_prime / np.linalg.norm(g_prime)  # TODO this normalization shouldn't be necessary
+        Z[:, i] = (Y[i] * g * Y[i].inverse()).to_angle()
 
     z_k = np.mean(Z, axis=1)
 
@@ -134,8 +137,8 @@ for t in range(0, np.shape(accel_val)[1]):
         temp = Z[:, i] - z_k
         P_zz += np.outer(temp, temp)
         P_xz += np.outer(w, temp)
-    P_zz /= (2 * n)
-    P_xz /= (2 * n)
+    P_zz /= (4 * n)
+    P_xz /= (4 * n)
 
     P_vv = P_zz + R  # covariance of the innovation
     K = np.dot(P_xz, np.linalg.inv(P_vv))  # Kalman gain

@@ -1,6 +1,5 @@
 import numpy as np
 
-
 class Quaternion:
     def __init__(self, s, v):
         self.v = v.astype('float')
