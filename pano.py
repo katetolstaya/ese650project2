@@ -2,17 +2,15 @@ import numpy as np
 from scipy import io
 from Quaternion import *
 import matplotlib.pyplot as plt
-from PIL import Image
-from PIL import ImageDraw
 import cv2
-#from findDimensions import findDimensions
+
 import math
-file_num = 8
+file_num = 2
 mydata = 0 # flag decides whether to use vicon or my filtered data
 
 if mydata:
-    fileName = "filtered" + str(file_num) + ".npy"
-    fileNamet = "time" + str(file_num) + ".npy"
+    fileName = "filtered/filtered" + str(file_num) + ".npy"
+    fileNamet = "filtered/time" + str(file_num) + ".npy"
     q = np.load(fileName)
     q_t = np.load(fileNamet)
 else:
@@ -30,7 +28,6 @@ w_pix = im_size[1]
 # set up pano canvas
 pano_size = (1000,1000,3)
 pano = np.zeros(pano_size, dtype=np.uint8)
-
 
 # pre-calculate arrays to be used for pixel rotations
 h_fov = np.radians(45)
@@ -66,10 +63,11 @@ for t in range(0, T,20):
 
     pitch = np.arccos(Z / np.sqrt(np.power(X,2) + np.power(Y,2) + np.power(Z,2)))
     yaw = np.arctan2(X,Y) + np.pi
+
     h = (pitch / math.pi * pano_size[0]).astype(int)
     theta = (yaw / math.pi / 2 * pano_size[1]).astype(int)
 
-    ################ blending
+    # Blend new frame and the rest of the pano
     new_frame = np.zeros(pano_size, dtype=np.uint8)
     new_frame[h.tolist(), theta.tolist(), :] = frame
 
@@ -88,6 +86,7 @@ for t in range(0, T,20):
 
     pano = cv2.addWeighted(empty_pano, 0.5, pano, 0.5, 0)
 
+ret1, mask = cv2.threshold(cv2.cvtColor(pano, cv2.COLOR_BGR2GRAY), 0, 255, cv2.THRESH_BINARY)
 
 # ip = interp2d(x, y, z); zi = ip(xi, yi)
 #pano = cv2.cvtColor(pano, cv2.COLOR_BGR2RGB)

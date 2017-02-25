@@ -3,14 +3,13 @@ import math, os, scipy
 from Quaternion import *
 import matplotlib.pyplot as plt
 from matplotlib.pyplot import *
-from rotplot import rotplot
 from util import rotationMatrixToEulerAngles, isRotationMatrix
 
 file_num = 1
 x = io.loadmat('imu/imuRaw' + str(file_num) + '.mat')
 v = io.loadmat('vicon/viconRot' + str(file_num) + '.mat')
-fileName = "filtered"+str(file_num)
-fileNamet = "time"+str(file_num)
+fileName = "filtered/filtered"+str(file_num)
+fileNamet = "filtered/time"+str(file_num)
 
 Vref = float(3300)  # mV
 
